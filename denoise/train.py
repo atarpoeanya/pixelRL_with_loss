@@ -3,6 +3,8 @@ from chainer import serializers
 from MyFCN import *
 from chainer import cuda, optimizers, Variable
 import sys
+import Loss
+import torch
 import math
 import time
 import chainerrl
@@ -33,6 +35,11 @@ SIGMA = 15
 N_ACTIONS = 9
 MOVE_RANGE = 3 #number of actions that move the pixel values. e.g., when MOVE_RANGE=3, there are three actions: pixel_value+=1, +=0, -=1.
 CROP_SIZE = 70
+
+W_SPA = 0
+W_TV = 0
+W_EXP = 0
+W_COL_RATE = 0
 
 GPU_ID = 0
 
@@ -97,6 +104,12 @@ def main(fout):
     train_data_size = MiniBatchLoader.count_paths(TRAINING_DATA_PATH)
     indices = np.random.permutation(train_data_size)
     i = 0
+    # Loss function init
+    L_spa = Loss.L_spa()
+    L_TV = Loss.L_TV()
+    L_exp = Loss.L_exp(16, 0.6)
+    L_color_rate = Loss.L_color_rate()
+
     for episode in range(1, N_EPISODES+1):
         # display current episode
         print("episode %d" % episode)
@@ -115,11 +128,32 @@ def main(fout):
         for t in range(0, EPISODE_LEN):
             previous_image = current_state.image.copy()
             action = agent.act_and_train(current_state.image, reward)
-            current_state.step(action)
-            reward = np.square(raw_x - previous_image)*255 - np.square(raw_x - current_state.image)*255
-            sum_reward += np.mean(reward)*np.power(GAMMA,t)
+            # current_state.step(action)
 
-        agent.stop_episode_and_train(current_state.image, reward, True)
+            raw_tensor = torch.from_numpy(raw_x).cuda()
+
+
+            previous_image_tensor = torch.from_numpy(previous_image).cuda()
+            current_state_tensor = torch.from_numpy(current_state.image).cuda()
+
+            action_tensor = torch.from_numpy(action).cuda()
+
+            # LOSS
+            loss_spa_cur = W_SPA * torch.mean(L_spa(current_state_tensor, raw_tensor))
+            Loss_TV_cur = W_TV * L_TV(action_tensor)
+            loss_exp_cur = W_EXP * torch.mean(L_exp(current_state_tensor))
+            # loss_col_rate_pre = W_COL_RATE * torch.mean(L_color_rate(previous_image_tensor, current_state_tensor))
+
+            # reward = np.square(raw_x - previous_image)*255 - np.square(raw_x - current_state.image)*255
+            # sum_reward += np.mean(reward)*np.power(GAMMA,t)
+             # REWARD DECLARATION
+            reward_current = loss_spa_cur + loss_exp_cur + Loss_TV_cur
+            reward = - reward_current
+            reward_de = reward.cpu().numpy()
+            sum_reward += np.mean(reward_de) * np.power(GAMMA, t)
+
+
+        agent.stop_episode_and_train(current_state.image, reward_de, True)
         print("train total reward {a}".format(a=sum_reward*255))
         fout.write("train total reward {a}\n".format(a=sum_reward*255))
         sys.stdout.flush()

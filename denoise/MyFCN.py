@@ -37,7 +37,9 @@ class MyFcn(chainer.Chain, a3c.A3CModel):
             diconv4=DilatedConvBlock(4, net.layer9.W.data, net.layer9.b.data),
             diconv5_pi=DilatedConvBlock(3, net.layer12.W.data, net.layer12.b.data),
             diconv6_pi=DilatedConvBlock(2, net.layer15.W.data, net.layer15.b.data),
+
             conv7_pi=chainerrl.policies.SoftmaxPolicy(L.Convolution2D( 64, n_actions, 3, stride=1, pad=1, nobias=False, initialW=w)),
+
             diconv5_V=DilatedConvBlock(3, net.layer12.W.data, net.layer12.b.data),
             diconv6_V=DilatedConvBlock(2, net.layer15.W.data, net.layer15.b.data),
             conv7_V=L.Convolution2D( 64, 1, 3, stride=1, pad=1, nobias=False, initialW=net.layer18.W.data, initial_bias=net.layer18.b.data),
@@ -52,7 +54,9 @@ class MyFcn(chainer.Chain, a3c.A3CModel):
         h = self.diconv4(h)
         h_pi = self.diconv5_pi(h)
         h_pi = self.diconv6_pi(h_pi)
+
         pout = self.conv7_pi(h_pi)
+        
         h_V = self.diconv5_V(h)
         h_V = self.diconv6_V(h_V)
         vout = self.conv7_V(h_V)
