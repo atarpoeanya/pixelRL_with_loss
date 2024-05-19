@@ -8,7 +8,7 @@ import torch
 import math
 import time
 import chainerrl
-import State
+from state_c import State
 import os
 from pixelwise_a3c import *
 
@@ -41,13 +41,18 @@ W_TV = 0
 W_EXP = 0
 W_COL_RATE = 0
 
+GAMMA = 0
+MULTI = 1
+CLIP = 0.7
+SIGMA = 0.4
+
 GPU_ID = 0
 
 def test(loader, agent, fout):
     sum_psnr     = 0
     sum_reward = 0
     test_data_size = MiniBatchLoader.count_paths(TESTING_DATA_PATH)
-    current_state = State.State((TEST_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE), MOVE_RANGE)
+    current_state = State((TEST_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE), MOVE_RANGE)
     for i in range(0, test_data_size, TEST_BATCH_SIZE):
         raw_x = loader.load_testing_data(np.array(range(i, i+TEST_BATCH_SIZE)))
         raw_n = np.random.normal(MEAN,SIGMA,raw_x.shape).astype(raw_x.dtype)/255
@@ -86,7 +91,7 @@ def main(fout):
  
     chainer.cuda.get_device_from_id(GPU_ID).use()
 
-    current_state = State.State((TRAIN_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE), MOVE_RANGE)
+    current_state = State((TRAIN_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE), MOVE_RANGE)
  
     # load myfcn model
     model = MyFcn(N_ACTIONS)
@@ -128,7 +133,7 @@ def main(fout):
         for t in range(0, EPISODE_LEN):
             previous_image = current_state.image.copy()
             action = agent.act_and_train(current_state.image, reward)
-            # current_state.step(action)
+            current_state.step(action, gamma=GAMMA, multi=MULTI,clip=CLIP,SIGMA= SIGMA)
 
             raw_tensor = torch.from_numpy(raw_x).cuda()
 
