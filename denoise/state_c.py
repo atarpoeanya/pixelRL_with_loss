@@ -4,24 +4,25 @@ import cv2
 from util import smallFunc
 
 class State():
-    def __init__(self, size):
+    def __init__(self, size, move_range):
         self.image = np.zeros(size,dtype=np.float32)
+        self.move_range = move_range
 
     
     def reset(self, x):
         self.image = x
-        size = self.image.shape
-        prev_state = np.zeros((size[0],64,size[2],size[3]),dtype=np.float32)
-        self.tensor = np.concatenate((self.image, prev_state), axis=1)
+        # size = self.image.shape
+        # prev_state = np.zeros((size[0],64,size[2],size[3]),dtype=np.float32)
+        # self.tensor = np.concatenate((self.image, prev_state), axis=1)
 
-    def set(self, x):
-        temp = np.copy(x)
-        temp[:,0,:,:] /= 100
-        temp[:,1,:,:] /= 127
-        temp[:,2,:,:] /= 127
-        self.tensor[:,:self.image.shape[1],:,:] = temp
+    # def set(self, x):
+    #     temp = np.copy(x)
+    #     temp[:,0,:,:] /= 100
+    #     temp[:,1,:,:] /= 127
+    #     temp[:,2,:,:] /= 127
+    #     self.tensor[:,:self.image.shape[1],:,:] = temp
 
-    def step(self, act, inner_state, **kwargs):
+    def step(self, act, **kwargs):
 
         bgr1 = np.copy(self.image)
         # Global Stretching
@@ -88,7 +89,7 @@ class State():
         # self.image = np.where(act_3channel==11, bgr11, self.image)
         # self.image = np.where(act_3channel==12, bgr12, self.image)
 
-        self.tensor[:,:self.image.shape[1],:,:] = self.image
-        self.tensor[:,-64:,:,:] = inner_state
+        # self.tensor[:,:self.image.shape[1],:,:] = self.image
+        # self.tensor[:,-64:,:,:] = inner_state
 
 

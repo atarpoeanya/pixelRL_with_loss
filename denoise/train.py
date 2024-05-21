@@ -29,8 +29,7 @@ TEST_EPISODES = 3000
 GAMMA = 0.95 # discount factor
 
 #noise setting
-MEAN = 0
-SIGMA = 15
+MEAN = 0.5
 
 N_ACTIONS = 9
 MOVE_RANGE = 3 #number of actions that move the pixel values. e.g., when MOVE_RANGE=3, there are three actions: pixel_value+=1, +=0, -=1.
@@ -63,6 +62,7 @@ def test(loader, agent, fout):
             previous_image = current_state.image.copy()
             action = agent.act(current_state.image)
             current_state.step(action)
+            # UNUSED
             reward = np.square(raw_x - previous_image)*255 - np.square(raw_x - current_state.image)*255
             sum_reward += np.mean(reward)*np.power(GAMMA,t)
 
@@ -123,10 +123,16 @@ def main(fout):
         # load images
         r = indices[i:i+TRAIN_BATCH_SIZE]
         raw_x = mini_batch_loader.load_training_data(r)
+        
         # generate noise
-        raw_n = np.random.normal(MEAN,SIGMA,raw_x.shape).astype(raw_x.dtype)/255
+
+        # raw_n = 
+        b = 0
+        b += int(round(255*(1-MEAN)/2))
+        raw_n = cv2.addWeighted(raw_x.copy(), MEAN, raw_x.copy(), 0, b)
+
         # initialize the current state and reward
-        current_state.reset(raw_x,raw_n)
+        current_state.reset(raw_n)
         reward = np.zeros(raw_x.shape, raw_x.dtype)
         sum_reward = 0
         
