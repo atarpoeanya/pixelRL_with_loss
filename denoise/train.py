@@ -1,4 +1,4 @@
-from mini_batch_loader import *
+from mini_batch_loader_c import *
 from chainer import serializers
 from MyFCN import *
 from chainer import cuda, optimizers, Variable
@@ -8,6 +8,7 @@ import torch
 import math
 import time
 import chainerrl
+from util import smallFunc
 from state_c import State
 import os
 from pixelwise_a3c import *
@@ -89,7 +90,7 @@ def main(fout):
         IMAGE_DIR_PATH, 
         CROP_SIZE)
  
-    chainer.cuda.get_device_from_id(GPU_ID).use()
+    # chainer.cuda.get_device_from_id(GPU_ID).use()
 
     current_state = State((TRAIN_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE), MOVE_RANGE)
  
@@ -123,17 +124,18 @@ def main(fout):
         # load images
         r = indices[i:i+TRAIN_BATCH_SIZE]
         raw_x = mini_batch_loader.load_training_data(r)
-        
+        raw_n = raw_x.copy()
         # generate noise
-
+        for i in range(0,64):
+            raw_n[i] = smallFunc.lower_contrast_batch(raw_n[i])
         # raw_n = 
-        b = 0
-        b += int(round(255*(1-MEAN)/2))
-        raw_n = cv2.addWeighted(raw_x.copy(), MEAN, raw_x.copy(), 0, b)
+        # b = 0
+        # b += int(round(255*(1-MEAN)/2))
+        # raw_n = cv2.addWeighted(raw_x.copy(), MEAN, raw_x.copy(), 0, b)
 
         # initialize the current state and reward
         current_state.reset(raw_n)
-        reward = np.zeros(raw_x.shape, raw_x.dtype)
+        reward = np.zeros(raw_n.shape, raw_n.dtype)
         sum_reward = 0
         
         for t in range(0, EPISODE_LEN):

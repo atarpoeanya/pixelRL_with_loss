@@ -4,6 +4,7 @@ import rgb2hsi
 
 claheFilter_2 = cv2.createCLAHE(clipLimit=0.3, tileGridSize=(8,8))
 
+
 def clahe_lab(image: np.ndarray, clip=0.3, tileSize=(8,8)):
   claheFilter_2 = cv2.createCLAHE(clip, tileSize)
   temp = np.zeros(image.shape, image.dtype)
@@ -41,7 +42,6 @@ def umf(image: np.ndarray, SIGMA=0.8):
 
 def stretching(image: np.ndarray, **kwargs):
     # Split the image into channels
-
 
     b, g, r = cv2.split(image)
 
@@ -88,7 +88,7 @@ def dark_channel(channel: np.ndarray, gamma=-20, multi=1):
     return stretched_channel
 
 
-def lower_contrast(image, contrast_factor=0.3, b=0):
+def lower_contrast(image: np.ndarray, contrast_factor=0.3, b=0):
     """
     Lower the contrast of an image.
     """
@@ -96,4 +96,11 @@ def lower_contrast(image, contrast_factor=0.3, b=0):
     b += int(round(255*(1-contrast_factor)/2))
     temp = cv2.addWeighted(image, contrast_factor, image, 0, b)
     return temp
+
+def lower_contrast_batch(image: np.ndarray, contrast_factor=0.3, b=0):
+    """
+    Lower the contrast of an image.
+    """
+    b += int(round(255*(1-contrast_factor)/2))
+    image = cv2.addWeighted(image, contrast_factor, image, 0, b)
 
