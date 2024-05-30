@@ -29,15 +29,15 @@ class MyFcn(chainer.Chain, a3c.A3CModel):
  
     def __init__(self, n_actions):
         w = chainer.initializers.HeNormal()
-        net = CaffeFunction('../initial_weight/zhang_cvpr17_denoise_15_gray.caffemodel')
+        net = chainer.serializers.load_npz("pixelRL_with_loss/initial_weight/200model.npz")
         super(MyFcn, self).__init__(
-            conv1=L.Convolution2D( 1, 64, 3, stride=1, pad=1, nobias=False, initialW=net.layer1.W.data, initial_bias=net.layer1.b.data),
-            diconv2=DilatedConvBlock(2, net.layer3.W.data, net.layer3.b.data),
-            diconv3=DilatedConvBlock(3, net.layer6.W.data, net.layer6.b.data),
-            diconv4=DilatedConvBlock(4, net.layer9.W.data, net.layer9.b.data),
-            diconv5_pi=DilatedConvBlock(3, net.layer12.W.data, net.layer12.b.data),
-            diconv6_pi=DilatedConvBlock(2, net.layer15.W.data, net.layer15.b.data),
-
+            conv1=L.Convolution2D( 3, 64, 3, stride=1, pad=1, nobias=False, initialW=net.conv1.W.data, initial_bias=net.conv1.b.data),
+             diconv2=DilatedConvBlock(2, net.diconv2.diconv.W.data, net.diconv2.diconv.b.data),
+            diconv3=DilatedConvBlock(3, net.diconv3.diconv.W.data, net.diconv3.diconv.b.data),
+            diconv4=DilatedConvBlock(4, net.diconv4.diconv.W.data, net.diconv4.diconv.b.data),
+            diconv5_pi=DilatedConvBlock(3, net.diconv5.diconv.W.data, net.diconv5.diconv.b.data),
+            diconv6_pi=DilatedConvBlock(2, net.diconv6.diconv.W.data, net.diconv6.diconv.b.data),
+            
             conv7_pi=chainerrl.policies.SoftmaxPolicy(L.Convolution2D( 64, n_actions, 3, stride=1, pad=1, nobias=False, initialW=w)),
 
             diconv5_V=DilatedConvBlock(3, net.layer12.W.data, net.layer12.b.data),

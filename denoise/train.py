@@ -140,7 +140,9 @@ def main(fout):
         
         for t in range(0, EPISODE_LEN):
             previous_image = current_state.image.copy()
-            action = agent.act_and_train(current_state.image, reward)
+
+            current_state.set(raw_x)
+            action = agent.act_and_train(current_state.tensor, reward)
             current_state.step(action, gamma=GAMMA, multi=MULTI,clip=CLIP,SIGMA= SIGMA)
 
             raw_tensor = torch.from_numpy(raw_x).cuda()
