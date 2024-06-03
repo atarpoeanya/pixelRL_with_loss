@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import cv2
-from util import smallFunc
+import smallFunc
 
 class State():
     def __init__(self, size, move_range):
@@ -15,37 +15,30 @@ class State():
         # prev_state = np.zeros((size[0],64,size[2],size[3]),dtype=np.float32)
         # self.tensor = np.concatenate((self.image, prev_state), axis=1)
 
-    # def set(self, x):
-    #     temp = np.copy(x)
-    #     temp[:,0,:,:] /= 100
-    #     temp[:,1,:,:] /= 127
-    #     temp[:,2,:,:] /= 127
-    #     self.tensor[:,:self.image.shape[1],:,:] = temp
-
-    def step(self, act, **kwargs):
+    def step(self, act, gamma, multi,clip,SIGMA):
 
         bgr_t = np.transpose(self.image, (0,2,3,1))
-
-        # Global Stretching
-        for i in range(0,b):
-            temp1 = smallFunc.stretching(bgr_t[i], **kwargs)
+        b, _, _, _ = self.image.shape
 
         temp1 = np.zeros(bgr_t.shape, bgr_t.dtype)
         temp2 = np.zeros(bgr_t.shape, bgr_t.dtype)
         temp3 = np.zeros(bgr_t.shape, bgr_t.dtype)
         temp4 = np.zeros(bgr_t.shape, bgr_t.dtype)
 
-        b, _, _, _ = self.image.shape
+        # Global Stretching
+        for i in range(0,b):
+            temp1[i] = np.float32(smallFunc.stretching(np.uint8(bgr_t[i]), gamma=gamma, multi=multi))
+
+
         # Pixel ise operation [
         #    -> CLAHE
         # ]
         for i in range(0,b):
             # if np.sum(act[i]==1) > 0:
-            temp1 = smallFunc.stretching(bgr_t[i], **kwargs)
             if np.sum(act[i]==2) > 0:
-                temp2 = smallFunc.clahe_hsv(bgr_t[i], **kwargs)
+                temp2[i] = np.float32(smallFunc.clahe_hsv(np.uint8(bgr_t[i]), clip))
             if np.sum(act[i]==3) > 0:
-                temp3 = smallFunc.clahe_hsv(bgr_t[i], **kwargs)
+                temp3[i] = np.float32(smallFunc.clahe_hsv(np.uint8(bgr_t[i]), clip))
             
                 
         bgr1 = np.transpose(temp1, (0,3,1,2))
@@ -54,8 +47,8 @@ class State():
 
         # Applying UMF globally
         for i in range(0,b):
-            temp4 = smallFunc.umf(bgr_t[i], **kwargs)
-        bgr3 = np.transpose(temp4, (0,3,1,2))
+            temp4[i] = np.float32(smallFunc.umf(np.uint8(bgr_t[i]), SIGMA))
+        bgr4 = np.transpose(temp4, (0,3,1,2))
         
         # bgr4 = smallFunc.umf(bgr4, **kwargs)
 
@@ -90,6 +83,8 @@ class State():
         self.image = np.where(act_3channel==2, bgr2, self.image)
         self.image = np.where(act_3channel==3, bgr3, self.image)
         self.image = np.where(act_3channel==4, bgr4, self.image)
+
+        
         # Apply denoising
         # self.image = np.where(act_3channel==5, gaussian, self.image)
         # self.image = np.where(act_3channel==6, bilateral, self.image)

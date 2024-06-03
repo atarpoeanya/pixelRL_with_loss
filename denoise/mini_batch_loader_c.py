@@ -63,12 +63,12 @@ class MiniBatchLoader(object):
                 if np.random.rand() > 0.5:
                     img = np.fliplr(img)
 
-                if np.random.rand() > 0.5:
-                    angle = 10*np.random.rand()
-                    if np.random.rand() > 0.5:
-                        angle *= -1
-                    M = cv2.getRotationMatrix2D((w/2,h/2),angle,1)
-                    img = cv2.warpAffine(img,M,(w,h))
+                # if np.random.rand() > 0.5:
+                #     angle = 10*np.random.rand()
+                #     if np.random.rand() > 0.5:
+                #         angle *= -1
+                #     M = cv2.getRotationMatrix2D((w/2,h/2),angle,1)
+                #     img = cv2.warpAffine(img,M,(w,h))
 
                 rand_range_h = h-self.crop_size
                 rand_range_w = w-self.crop_size
@@ -76,7 +76,7 @@ class MiniBatchLoader(object):
                 y_offset = np.random.randint(rand_range_h)
                 img = img[y_offset:y_offset+self.crop_size, x_offset:x_offset+self.crop_size]
                 # xs[i, 0, :, :] = (img/255).astype(np.float32)
-                img = (img/255).astype(np.float32)
+                img = (img/255).astype(np.float32) #not only it's float but it's also normalize
                 xs[i, :, :, :] = np.transpose(img, (2,0,1))
 
         elif mini_batch_size == 1:

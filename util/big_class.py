@@ -1,15 +1,18 @@
 import smallFunc
+import huh
 import cv2
 import numpy as np
 import math
 from eval import even_more_psnr, cal_entropy, mse, ssim
 
 # D:\Tugas_Kuliah\Tugas_Akhir\DRL\pixLOSS\
-# np.random.seed(1)
+np.random.seed(1)
 # imag = np.random.randint(0, 256, size=(4, 4, 3), dtype=np.uint8)
 imag = cv2.imread("test_image/new_image.png")
 # imag = cv2.imread("test_image/4_output.jpg")
 img = cv2.resize(imag, (0, 0), None, .5, .5)
+
+floaty = (img/255).astype(np.float32)
 # print(smallFunc.matsum(image=img) == smallFunc.matsum_copy(image=img))
 # numpy_horizontal = np.hstack((img, smallFunc.matsum_see(image=img)))
 
@@ -34,7 +37,15 @@ eval_per_step = {}
 #    print(f"{key}: {val}")
 
 # print("end\n")
-
+# print(img)
+# print("end\n")
+# print(floaty)
+# print("------------------------------------\n")
+# norm = huh.umf(img / 255)
+# t = huh.umf(floaty)
+# print(norm)
+# print("end\n")
+# print(t)
 
 # worse_con = smallFunc.lower_contrast(image=img, contrast_factor=0.5 , b=7)
 
@@ -54,7 +65,9 @@ SIGMA = 0.4
 eval_sequence = {}
 res = np.ndarray(img.shape, img.dtype)
 def seq_enhc(image, isWorsen=False):
-   input = smallFunc.lower_contrast(image, 0.7, 0.3) if isWorsen else image
+
+   temp = np.float32(image)
+   input = smallFunc.lower_contrast(np.uint8(temp), 0.7, 3) if isWorsen else image
    # enhancement via dark stretching
    eval_sequence["ds"] = even_more_psnr(smallFunc.stretching(input, gamma=GAMMA, multi = MULTI), img)
    ds = smallFunc.stretching(input, gamma=GAMMA, multi = MULTI)
@@ -75,6 +88,9 @@ def seq_enhc(image, isWorsen=False):
    return umf_hsv
 res = seq_enhc(img, True)
 
+
+
+
 if len(eval_sequence) > 0:
    for i,(key,val) in enumerate(eval_sequence.items()):
       if i == 0:
@@ -83,29 +99,28 @@ if len(eval_sequence) > 0:
 
    print("end\n")
 
-print(even_more_psnr(img,img))
+   print(even_more_psnr(img,img))
 
-print(
-   "\nMSE",
-   mse(res, img),
-   "\nEntropy original",
-   cal_entropy(img),
-   "\nEntropy enahnced",
-   cal_entropy(res),
-   "\nSSIM",
-   ssim(img, res),
-)
+   print(
+      "\nMSE",
+      mse(res, img),
+      "\nEntropy original",
+      cal_entropy(img),
+      "\nEntropy enahnced",
+      cal_entropy(res),
+      "\nSSIM",
+      ssim(img, res),)
+   # numpy_horizontal_concat = np.concatenate((img, res), axis=1)
+
+   cv2.imshow('image window', res)
+   # add wait key. window waits until user presses a key
+   cv2.waitKey(0)
+   # and finally destroy/close all open windows
+   cv2.destroyAllWindows()
 
 
 
 
 
-numpy_horizontal_concat = np.concatenate((img, res), axis=1)
-
-cv2.imshow('image window', numpy_horizontal_concat)
-# add wait key. window waits until user presses a key
-cv2.waitKey(0)
-# and finally destroy/close all open windows
-cv2.destroyAllWindows()
 
 
