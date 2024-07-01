@@ -25,6 +25,17 @@ def clahe_hsv(image: np.ndarray, clip=0.3, tileSize=(8,8)):
   temp = cv2.cvtColor(temp, cv2.COLOR_HSV2BGR)
 
   return temp
+
+def HE(image: np.ndarray, mean, contrast_factor):
+  
+  temp = np.zeros(image.shape, image.dtype)
+  temp = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+  
+  temp[...,2] = (temp[...,2] - mean) * contrast_factor + mean
+  temp = cv2.cvtColor(temp, cv2.COLOR_HSV2BGR)
+
+  return temp
+
 def umf(image: np.ndarray, SIGMA=0.8):
     img = np.copy(image)
     hsi = rgb2hsi.toHSI(img)

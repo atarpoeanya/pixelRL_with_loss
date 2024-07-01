@@ -1,9 +1,9 @@
 from mini_batch_loader_c import *
 from chainer import serializers
-from MyFCN import *
+from customFCN import *
 from chainer import cuda, optimizers, Variable
 import sys
-import Loss
+import random
 import torch
 import math
 import time
@@ -15,53 +15,36 @@ from pixelwise_a3c import *
 import csv
 
 #_/_/_/ paths _/_/_/ 
-TRAINING_DATA_PATH          = "/content/training_list/tanzania_training.txt"
-TESTING_DATA_PATH           = "/content/testing_list/tanzania_training.txt"
+TRAINING_DATA_PATH          = "/content/training_list/train_list.txt"
+TESTING_DATA_PATH           = "/content/testing_list/testing_list.txt"
 IMAGE_DIR_PATH              = "../"
 SAVE_PATH            = "/content/model/denoise_myfcn_"
 
 csv_path = "/content/training_res/"
  
 #_/_/_/ training parameters _/_/_/ 
-LEARNING_RATE    = 0.0001
+LEARNING_RATE    = 0.001
 TRAIN_BATCH_SIZE = 64
 TEST_BATCH_SIZE  = 1 #must be 1
-N_EPISODES       = 300
+N_EPISODES       = 6
 EPISODE_LEN = 10
-SNAPSHOT_EPISODES  = 60
-TEST_EPISODES = 30
+SNAPSHOT_EPISODES  = 500
+TEST_EPISODES = 5
 GAMMA = 0.95 # discount factor
 
 #noise setting
 MEAN = 0.5
-N_ACTIONS = 5
+N_ACTIONS = 13
 MOVE_RANGE = 3 #number of actions that move the pixel values. e.g., when MOVE_RANGE=3, there are three actions: pixel_value+=1, +=0, -=1.
 CROP_SIZE = 70
-
-W_SPA = 1
-W_TV = 100
-W_EXP = 70
-W_COL_RATE = 1
-
-gumma = 0
-MULTI = 0.75
-CLIP = 0.3
-SIGMA = 0.3
 
 pretrained = False
 weight = '/content/model_loss/denoise_myfcn_240/model.npz'
 
 parameters = {
-    'threshold_value': gumma,
-    'threshold_dif': MULTI,
-    'clipping_limit': CLIP,
-    'sharpening_strength': SIGMA,
     'learning_rate': LEARNING_RATE,
 
     'DISCOUNT_FACTOR': GAMMA,
-
-    'SPA_DISCOUNT': W_SPA,
-    'EXP_DISCOUNT': W_EXP
 
 }
 
@@ -72,11 +55,13 @@ def test(loader, agent, fout):
     sum_psnr     = 0
     sum_reward = 0
     test_data_size = MiniBatchLoader.count_paths(TESTING_DATA_PATH)
-    current_state = State((TEST_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE), MOVE_RANGE)
+    current_state = State((TEST_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE))
     for i in range(0, test_data_size, TEST_BATCH_SIZE):
         raw_x = loader.load_testing_data(np.array(range(i, i+TEST_BATCH_SIZE)))
         raw_n = raw_x.copy()
-        raw_n = smallFunc.lower_contrast(raw_n)
+
+        for i in range(0,1):
+            raw_n[i] = smallFunc.HE(raw_n[i], 0.9, random.uniform(0.6, 0.8))
         current_state.reset(raw_n)
         
         reward = np.zeros(raw_x.shape, raw_x.dtype)*255
@@ -84,7 +69,7 @@ def test(loader, agent, fout):
         for t in range(0, EPISODE_LEN):
             previous_image = current_state.image.copy()
             action = agent.act(current_state.image)
-            current_state.step(action, gamma=gumma, multi=MULTI,clip=CLIP,SIGMA= SIGMA)
+            current_state.step(action)
             # UNUSED
             reward = np.square(raw_x - previous_image)*255 - np.square(raw_x - current_state.image)*255
             sum_reward += np.mean(reward)*np.power(GAMMA,t)
@@ -93,16 +78,21 @@ def test(loader, agent, fout):
             
         I = np.maximum(0,raw_x)
         I = np.minimum(1,I)
+        N = np.maximum(0,raw_n)
+        N = np.minimum(1,N)
         p = np.maximum(0,current_state.image)
         p = np.minimum(1,p)
-        I = (I*255+0.5).astype(np.uint8)
-        validation = raw_n
-        p = (p*255+0.5).astype(np.uint8)
-        # print(p.shape)
-        cv2.imwrite('/content/res/'+str(i)+'_input.png', np.transpose(validation[0], (1,2,0)))
-        cv2.imwrite('/content/res/'+str(i)+'_truth.png', np.transpose(I[0], (1,2,0)))
-        cv2.imwrite('/content/res/'+str(i)+'_output.png', np.transpose(p[0], (1,2,0)))
-        sum_psnr += cv2.PSNR(p, I)
+        I = (I[0]*255+0.5).astype(np.uint8)
+        N = (N[0]*255+0.5).astype(np.uint8)
+        p = (p[0]*255+0.5).astype(np.uint8)
+        p = np.transpose(p,(1,2,0))
+        I = np.transpose(I,(1,2,0))
+        N = np.transpose(N,(1,2,0))
+        
+        cv2.imwrite('/content/res/'+str(i)+'_input.png', N)
+        cv2.imwrite('/content/res/'+str(i)+'_truth.png', I)
+        cv2.imwrite('/content/res/'+str(i)+'_output.png', p)
+        sum_psnr += cv2.PSNR(p, N)
  
     print("test total reward {a}, PSNR {b}".format(a=sum_reward*255/test_data_size, b=sum_psnr/test_data_size))
     fout.write("test total reward {a}, PSNR {b}\n".format(a=sum_reward*255/test_data_size, b=sum_psnr/test_data_size))
@@ -119,7 +109,7 @@ def main(fout):
  
     # chainer.cuda.get_device_from_id(GPU_ID).use()
 
-    current_state = State((TRAIN_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE), MOVE_RANGE)
+    current_state = State((TRAIN_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE))
 
  
     # load myfcn model
@@ -140,12 +130,7 @@ def main(fout):
     train_data_size = MiniBatchLoader.count_paths(TRAINING_DATA_PATH)
     indices = np.random.permutation(train_data_size)
     i = 0
-    # Loss function init
-    L_spa = Loss.L_spa()
-    L_TV = Loss.L_TV()
-    L_exp = Loss.L_exp(16, 0.6)
-    L_color_rate = Loss.L_color_rate()
-
+    r = indices[i:i+TRAIN_BATCH_SIZE]
     result_array = []
     for episode in range(1, N_EPISODES+1):
         # display current episode
@@ -158,7 +143,7 @@ def main(fout):
         raw_n = raw_x.copy()
         # generate noise
         for i in range(0,64):
-            raw_n[i] = smallFunc.lower_contrast(raw_n[i], MEAN)
+            raw_n[i] = smallFunc.HE(raw_n[i], 0.9, random.uniform(0.6, 0.8))
         # initialize the current state and reward
         current_state.reset(raw_n)
         reward = np.zeros(raw_n.shape, raw_n.dtype)
@@ -203,17 +188,10 @@ def main(fout):
                 # Create a CSV writer object
                 csvwriter = csv.writer(csvfile)
                  # Write the parameters section
-                csvwriter.writerow(['Threshold Value', 'Threshold Dif', 'Clipping Limit', 'Sharpening Strength','learning_rate','DISCOUNT_FACTOR','SPA_DISCOUNT'
-,'EXP_DISCONUT'])
+                csvwriter.writerow(['learning_rate','DISCOUNT_FACTOR'])
                 csvwriter.writerow([
-                    parameters['threshold_value'], 
-                    parameters['threshold_dif'], 
-                    parameters['clipping_limit'], 
-                    parameters['sharpening_strength'],
                     parameters['learning_rate'],
-                    parameters['DISCOUNT_FACTOR'],
-                    parameters['SPA_DISCOUNT'],
-                    parameters['EXP_DISCOUNT'],
+                    parameters['DISCOUNT_FACTOR'],                    
                 ])
                 
                 # Add a blank row as a separator (optional)
