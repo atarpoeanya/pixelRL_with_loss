@@ -37,6 +37,17 @@ def HE(image: np.ndarray, mean, contrast_factor):
   temp = np.transpose(temp, (2,0,1))
   return np.float32(temp / 255)
 
+def psudo_enhance(image: np.ndarray, mean, contrast_factor):
+
+  temp = np.uint8(image.copy() * 255)
+  temp = np.transpose(temp, (1,2,0))
+
+  temp = stretching(temp, gamma=0, multi=1)
+  temp = clahe_hsv(temp, clip=0.005)
+  
+  temp = np.transpose(temp, (2,0,1))
+  return np.float32(temp / 255)
+
 
 def umf(image: np.ndarray, SIGMA=0.8):
     img = np.copy(image)
@@ -75,7 +86,8 @@ def dark_channel(channel: np.ndarray, gamma=-20, multi=1):
     # Find minimum and maximum pixel values
 
     I = channel.copy()
-    FS,th2 = cv2.threshold(I,0,255,cv2.THRESH_OTSU+cv2.THRESH_BINARY)
+    if FS == 0:
+      FS,th2 = cv2.threshold(I,0,255,cv2.THRESH_OTSU+cv2.THRESH_BINARY)
 
     lower = I[I < FS]
     upper = I[I > FS]
