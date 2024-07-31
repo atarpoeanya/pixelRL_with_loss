@@ -9,6 +9,7 @@ import math
 import time
 import chainerrl
 import smallFunc
+from augment import process_image
 from state_b import State
 import os
 from pixelwise_a3c import *
@@ -34,7 +35,7 @@ GAMMA = 0.95 # discount factor
 
 #noise setting
 MEAN = 0.5
-N_ACTIONS = 13
+N_ACTIONS = 17
 MOVE_RANGE = 3 #number of actions that move the pixel values. e.g., when MOVE_RANGE=3, there are three actions: pixel_value+=1, +=0, -=1.
 CROP_SIZE = 70
 
@@ -60,9 +61,10 @@ def test(loader, agent, fout):
         raw_x = loader.load_testing_data(np.array(range(i, i+TEST_BATCH_SIZE)))
         raw_n = raw_x.copy()
 
-        for i in range(0,1):
-            raw_n[i] = smallFunc.HE(raw_n[i], 0.9, random.uniform(0.6, 0.8))
-        current_state.reset(raw_n)
+        for x in range(0, test_data_size, TEST_BATCH_SIZE):
+        #     raw_n[x] = smallFunc.HE(raw_n[x], 0.9, random.uniform(0.6, 0.8))
+        # current_state.reset(raw_n)
+            raw_n[x] = process_image(raw_n[x], 'gaussian', 3, 1, random.choice([1.3,0.7]))
         
         reward = np.zeros(raw_x.shape, raw_x.dtype)*255
         
@@ -143,7 +145,8 @@ def main(fout):
         raw_n = raw_x.copy()
         # generate noise
         for i in range(0,64):
-            raw_n[i] = smallFunc.HE(raw_n[i], 0.9, random.uniform(0.6, 0.8))
+            # raw_n[i] = smallFunc.HE(raw_n[i], 0.9, random.uniform(0.6, 0.8))
+            raw_n[i] = process_image(raw_n[i], 'gaussian', 3, 1, random.choice([1.3,0.7]))
         # initialize the current state and reward
         current_state.reset(raw_n)
         reward = np.zeros(raw_n.shape, raw_n.dtype)

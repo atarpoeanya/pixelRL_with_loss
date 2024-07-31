@@ -7,7 +7,7 @@ class State():
     def __init__(self, size):
         self.image = np.zeros(size,dtype=np.float32)
 
-    def reset(self, x):
+    def reset(self, x:np.ndarray):
         self.image = x
 
     def step(self, act):
@@ -25,7 +25,7 @@ class State():
             if np.sum(act[i]==1) > 0:
                 temp1[i] = smallFunc.contrast(bgr_t[i]+0.5, 0.95)
             if np.sum(act[i]==2) > 0:
-                temp2[i] = smallFunc.contrast(bgr_t[i]+0.5, 0.95)
+                temp2[i] = smallFunc.contrast(bgr_t[i]+0.5, 1.05)
             if np.sum(act[i]==3) > 0:
                 temp = cv2.cvtColor(bgr_t[i], cv2.COLOR_BGR2HSV)
                 temp[1] *= 0.95

@@ -59,6 +59,12 @@ class MiniBatchLoader(object):
                 if img is None:
                     raise RuntimeError("invalid image: {i}".format(i=path))
                 h, w,_ = img.shape
+                # h,w,c = 0,1,2
+                # c,h,w = 2,0,1
+
+                # c,h,w = 0,1,2
+                # h,w,c = 1,2,0
+                
 
                 if np.random.rand() > 0.5:
                     img = np.fliplr(img)

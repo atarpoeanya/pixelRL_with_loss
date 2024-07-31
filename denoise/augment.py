@@ -1,10 +1,11 @@
 import cv2
 import numpy as np
 from math import pi
+import random
 
 def toHSI(imageInput: np.ndarray):
     t = np.copy(imageInput)
-    bgr = np.int32(cv2.split(t))
+    bgr = np.int8(cv2.split(t))
     
     blue = bgr[0]
     green = bgr[1]
@@ -103,7 +104,7 @@ def apply_motion_blur(image, kernel_size):
 def diminish_color_intensity(image, factor):
     """Diminish color intensity of the image."""
     temp = toHSI(image)
-    temp[:, :, 2] = (temp[:, :, 2] * factor)
+    temp[:, :, 1] = (temp[:, :, 1] * factor)
     return backBGR(temp)
 
 def adjust_exposure(image, factor):
@@ -112,10 +113,10 @@ def adjust_exposure(image, factor):
     hsv[:, :, 2] = np.clip(hsv[:, :, 2] * factor, 0, 255)
     return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
-def process_image(image_path, blur_type='gaussian', blur_degree=5, color_intensity_factor=0.5, exposure_factor=1.2):
+def process_image(image, blur_type='gaussian', blur_degree=5, color_intensity_factor=0.5, exposure_factor=1.2):
     """Process the image with given parameters."""
-    image = cv2.imread(image_path)
-    
+    image = np.transpose(image , (1,2,0))
+    image = np.uint8(image * 255)
     if blur_type == 'gaussian':
         image = apply_gaussian_blur(image, blur_degree)
     elif blur_type == 'motion':
@@ -123,24 +124,25 @@ def process_image(image_path, blur_type='gaussian', blur_degree=5, color_intensi
 
     image = diminish_color_intensity(image, color_intensity_factor)
     image = adjust_exposure(image, exposure_factor)
-
+    image = np.float32(image / 255)
+    image = np.transpose(image, (2,0,1))
     return image
 
-# Example usage
-# input_image_path = './test_image\color_test.jpg'
-input_image_path = './test_image/0_truth.png'
-output_image_path = 'output.jpg'
+# # Example usage
+# # input_image_path = './test_image\color_test.jpg'
+# input_image_path = './test_image/0_truth.png'
+# output_image_path = 'output.jpg'
 
-processed_image = process_image(
-    input_image_path,
-    blur_type=  'gaussian',   #'motion',
-    blur_degree=5,
-    color_intensity_factor=1,
-    exposure_factor= 1.9
-)
+# processed_image = process_image(
+#     input_image_path,
+#     blur_type=  'gaussian',   #'motion',
+#     blur_degree=5,
+#     color_intensity_factor=0.3,
+#     exposure_factor= random.choice([1.6, 0.7])
+# )
 
-# cv2.imwrite(output_image_path, processed_image)
-cv2.imshow('Processed Image', processed_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# # cv2.imwrite(output_image_path, processed_image)
+# cv2.imshow('Processed Image', processed_image)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 

@@ -1,8 +1,19 @@
 import numpy as np
 import cv2
+from skimage.metrics import structural_similarity
+from math import pi
 
-claheFilter_2 = cv2.createCLAHE(clipLimit=0.3, tileGridSize=(8,8))
+# claheFilter_2 = cv2.createCLAHE(clipLimit=0.3, tileGridSize=(8,8))
 
+
+def contrast(image: np.ndarray, b):
+  image_rgb = (image.copy() * 255).astype(np.uint8)
+  mean = np.mean(image_rgb)
+  degenerate = np.zeros(image_rgb.shape)+mean
+
+  image_rgb = b * image_rgb + (1-b) * degenerate
+  image_rgb = np.clip(image_rgb,0,1)
+  return (image_rgb / 255).astype(np.float32)
 
 def clahe_lab(image: np.ndarray, clip=0.3, tileSize=(8,8)):
   claheFilter_2 = cv2.createCLAHE(clip, tileSize)
@@ -15,42 +26,34 @@ def clahe_lab(image: np.ndarray, clip=0.3, tileSize=(8,8)):
   return temp
 
 
-def clahe_hsv(image: np.ndarray, clip=0.3, tileSize=(8,8)):
+def clahe_hsv(image: np.ndarray, clip=2, tileSize=(4,4)):
   claheFilter_2 = cv2.createCLAHE(clip, tileSize)
-  temp = np.zeros(image.shape, image.dtype)
-  temp = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+  temp1 = (image.copy() * 255).astype(np.uint8)
+
+  temp = cv2.cvtColor(temp1, cv2.COLOR_BGR2HSV)
   
-  temp[...,0] = claheFilter_2.apply(temp[...,0])
+  temp[...,0] = claheFilter_2.apply(temp[...,2])
   temp = cv2.cvtColor(temp, cv2.COLOR_HSV2BGR)
 
-  return temp
-
+  return (temp / 255).astype(np.float32)
 
 def HE(image: np.ndarray, mean, contrast_factor):
 
-  temp = np.uint8(image.copy() * 255)
+  temp = np.uint8(image.copy())
+  print(temp.shape)
   temp = np.transpose(temp, (1,2,0))
+  print(temp.shape)
   temp = cv2.cvtColor(temp, cv2.COLOR_BGR2HSV)
   
   temp[...,2] = (temp[...,2] - mean) * contrast_factor + mean
   temp = cv2.cvtColor(temp, cv2.COLOR_HSV2BGR)
   temp = np.transpose(temp, (2,0,1))
-  return np.float32(temp / 255)
-
-def psudo_enhance(image: np.ndarray, mean, contrast_factor):
-
-  temp = np.uint8(image.copy() * 255)
-  temp = np.transpose(temp, (1,2,0))
-
-  temp = stretching(temp, gamma=0, multi=1)
-  temp = clahe_hsv(temp, clip=0.005)
-  
-  temp = np.transpose(temp, (2,0,1))
-  return np.float32(temp / 255)
-
+  print(temp.shape)
+  return np.float32(temp)
 
 def umf(image: np.ndarray, SIGMA=0.8):
-    img = np.copy(image)
+    img = (image.copy() * 255).astype(np.uint8)
     hsi = toHSI(img)
     # h,s,i = cv2.split(hsi) 
     
@@ -62,12 +65,12 @@ def umf(image: np.ndarray, SIGMA=0.8):
 
     hsi[...,2] += SIGMA * edge
     # hsi = cv2.merge([h,s,i])
-    return backBGR(hsi)
+    return (backBGR(hsi) /255 ).astype(np.float32)
 
 def stretching(image: np.ndarray, **kwargs):
     # Split the image into channels
-
-    b, g, r = cv2.split(image)
+    temp1 = (image.copy() * 255).astype(np.uint8)
+    b, g, r = cv2.split(temp1)
 
     
     # Apply dark stretching to each channel
@@ -78,16 +81,15 @@ def stretching(image: np.ndarray, **kwargs):
     # Merge the channels back into an RGB image
     stretched_image = cv2.merge([b_stretched, g_stretched, r_stretched])
     
-    return stretched_image
+    return (stretched_image / 255).astype(np.float32)
 
 
 
-def dark_channel(channel: np.ndarray, gamma=-20, multi=1):
+def dark_channel(channel: np.ndarray, gamma=0, multi=1):
     # Find minimum and maximum pixel values
 
     I = channel.copy()
-    if FS == 0:
-      FS,th2 = cv2.threshold(I,0,255,cv2.THRESH_OTSU+cv2.THRESH_BINARY)
+    FS,th2 = cv2.threshold(I,0,255,cv2.THRESH_OTSU+cv2.THRESH_BINARY)
 
     lower = I[I < FS]
     upper = I[I > FS]
@@ -106,7 +108,7 @@ def dark_channel(channel: np.ndarray, gamma=-20, multi=1):
                      )
 
 
-    stretched_channel = np.uint8(new_I)
+    stretched_channel = new_I
 
     # print(max_upper, min_upper, max_lower, min_lower)
 
@@ -117,10 +119,9 @@ def lower_contrast(image: np.ndarray, contrast_factor=0.3, b=0):
     """
     Lower the contrast of an image.
     """
-    temp = np.zeros(image.shape, np.uint8)
-    b += int(round(255*(1-contrast_factor)/2))
-    temp = cv2.addWeighted(np.uint8(image.copy()), contrast_factor, np.uint8(image.copy()), 0, b)
-    return np.float32(temp)
+    b += (1.0 * (1 - contrast_factor) / 2)
+    temp = cv2.addWeighted(image, contrast_factor, image, 0, b)
+    return temp
 
 def lower_contrast_batch(image: np.ndarray, contrast_factor=0.3, b=0):
     """
@@ -129,11 +130,11 @@ def lower_contrast_batch(image: np.ndarray, contrast_factor=0.3, b=0):
     b += int(round(255*(1-contrast_factor)/2))
     image = cv2.addWeighted(image, contrast_factor, image, 0, b)
 
-from math import pi
+
 
 def toHSI(imageInput: np.ndarray):
     t = np.copy(imageInput)
-    bgr = np.int32(cv2.split(t))
+    bgr = cv2.split(t)
     
     blue = bgr[0]
     green = bgr[1]
@@ -218,3 +219,55 @@ def backBGR(hsi):
   
   return bgr
 
+def compute_batch_rgb_angles(batch1, batch2):
+    """
+    Computes the angles between corresponding pixels across batches of RGB images.
+
+    Parameters:
+    batch1 (numpy.ndarray): First batch of RGB images with shape (batch_size, 3, height, width).
+    batch2 (numpy.ndarray): Second batch of RGB images with shape (batch_size, 3, height, width).
+
+    Returns:
+    numpy.ndarray: Angles in degrees between corresponding pixels, with shape (batch_size, height, width).
+    """
+    
+    # Check if input dimensions match
+    if batch1.shape != batch2.shape:
+        raise ValueError("Input batches must have the same shape")
+    
+    # Reshape to (batch_size * height * width, 3) for vector operations
+    vec_batch1 = batch1.transpose(0, 2, 3, 1).reshape(-1, 3)
+    vec_batch2 = batch2.transpose(0, 2, 3, 1).reshape(-1, 3)
+
+    # Compute the dot product for corresponding pixels
+    dot_product = np.einsum('ij,ij->i', vec_batch1, vec_batch2)
+
+    # Compute the magnitudes for corresponding pixels
+    magnitude_batch1 = np.linalg.norm(vec_batch1, axis=1)
+    magnitude_batch2 = np.linalg.norm(vec_batch2, axis=1)
+
+    # Calculate the cosine of the angles
+    cos_angle = dot_product / (magnitude_batch1 * magnitude_batch2)
+
+    # Handle potential floating-point precision issues
+    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+
+    # Compute the angles in radians and then convert to degrees
+    angle_rad = np.arccos(cos_angle)
+    angle_deg = np.degrees(angle_rad)
+
+    # Reshape the result back to the original batch format (batch_size, height, width)
+    batch_size, _, height, width = batch1.shape
+    angle_deg = angle_deg.reshape(batch_size, height, width)
+
+    return angle_deg
+
+def ssim(original_image,distorted_image):
+
+    # Convert the images to grayscale (optional, but often done for SSIM)
+    original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
+    distorted_image =cv2.cvtColor(distorted_image, cv2.COLOR_BGR2GRAY)
+
+
+    # Calculate SSIM
+    return structural_similarity(original_image, distorted_image,channel_axis=-1 ,data_range=1)
